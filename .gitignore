@@ -1,0 +1,27 @@
+# Python virtual environment and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Uploaded Stock Card files and generated reports
+*.xlsx
+*.xls
+*.csv
+*.zip
+รายงานส่งออก/
+ข้อมูล/
+
+# Streamlit local files
+.streamlit/secrets.toml
+.streamlit/cache/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/

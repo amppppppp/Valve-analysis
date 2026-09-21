@@ -1,0 +1,21 @@
+วิธีเปิดโปรแกรมวิเคราะห์วาล์ว
+
+1. เปิดโฟลเดอร์นี้ใน VS Code หรือ File Explorer
+   D:\VScode\Valve analysis
+
+2. เปิด PowerShell ในโฟลเดอร์นี้
+
+3. คัดลอกคำสั่งด้านล่างไปรันทีละบรรทัด
+
+cd "D:\VScode\Valve analysis"
+.\.venv\Scripts\Activate.ps1
+streamlit run app.py
+
+4. เปิดเว็บบราวเซอร์ไปที่
+   http://localhost:8501
+
+5. อัปโหลดไฟล์ Excel แล้วกดปุ่มส่งออก Excel เมื่อต้องการดาวน์โหลดรายงาน
+
+หมายเหตุ:
+- ถ้าขึ้นว่า port 8501 ถูกใช้งาน ให้เปิด URL ที่ Streamlit แสดงในหน้าจอ
+- ปิดโปรแกรมโดยกลับไปที่ PowerShell แล้วกด Ctrl+C
