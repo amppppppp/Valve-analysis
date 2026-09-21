@@ -352,6 +352,23 @@ def load_bp_google_sheet(sheet_url, target_year_be):
     except Exception:
         return pd.DataFrame()
 
+@st.cache_data(show_spinner=False)
+def load_all_mapped_data(entry_specs, target_year_be, bp_data):
+    """รวมข้อมูลที่ mapping แล้วครั้งเดียว ใช้ร่วมกันทุกแท็บในรอบการทำงาน"""
+    parsed_frames = []
+    for source, file_bytes, sheet_name, col_start, location, valve_type in entry_specs:
+        if source == 'google':
+            parsed = bp_data[bp_data['valve_type'] == valve_type].copy()
+        else:
+            parsed = _parse_valve_data_cached(
+                file_bytes, sheet_name, col_start, location, target_year_be
+            )
+        if len(parsed) > 0:
+            parsed['valve_type'] = valve_type
+            parsed_frames.append(parsed)
+    return pd.concat(parsed_frames, ignore_index=True) if parsed_frames else pd.DataFrame()
+
+@st.cache_data(show_spinner=False)
 def build_export_excel(df_all):
     """สร้างไฟล์ Excel รายงานแยกพื้นที่ แยกชนิดวาล์ว และอัตราการใช้ย้อนหลัง"""
     export_df = df_all.copy()
@@ -528,22 +545,19 @@ if source_files:
     if mapping_results:
         df_mapped = pd.DataFrame(mapping_results)
 
-        # --- Export report for all mapped valve types and plants --- #
-        export_dfs = []
-        for _, entry in df_mapped.iterrows():
-            if entry.get('source') == 'google':
-                parsed = bp_data[bp_data['valve_type'] == entry['final_mapped_type']].copy()
-            else:
-                file_obj = file_map[entry['file_name']]
-                parsed = parse_valve_data(
-                    file_obj, entry['sheet_name'], entry['col_start'], entry['location'], target_year
-                )
-            if len(parsed) > 0:
-                parsed['valve_type'] = entry['final_mapped_type']
-                export_dfs.append(parsed)
+        entry_specs = tuple(
+            (
+                entry.get('source', 'excel'),
+                b'' if entry.get('source') == 'google' else file_map[entry['file_name']].getvalue(),
+                entry['sheet_name'], entry['col_start'], entry['location'], entry['final_mapped_type']
+            )
+            for _, entry in df_mapped.iterrows()
+        )
+        all_mapped_data = load_all_mapped_data(entry_specs, target_year, bp_data)
 
-        if export_dfs:
-            export_bytes = build_export_excel(pd.concat(export_dfs, ignore_index=True))
+        # --- Export report for all mapped valve types and plants --- #
+        if len(all_mapped_data) > 0:
+            export_bytes = build_export_excel(all_mapped_data)
             st.download_button(
                 label="📥 ส่งออก Excel: แยกพื้นที่ / แยกขนาด / อัตราใช้ย้อนหลัง",
                 data=export_bytes,
@@ -583,24 +597,10 @@ if source_files:
             selected_plant_view = sel_c2.selectbox("🏢 2. เลือกพื้นที่ที่ต้องการดูผล:", plant_options_view, index=0, key="hist_plant")
 
             # กรอง active entries
-            if is_all_valves:
-                active_entries = df_mapped[df_mapped['final_mapped_type'].isin(available_valves_list)]
-            else:
-                active_entries = df_mapped[df_mapped['final_mapped_type'] == selected_valve]
-                
-            parsed_dfs = []
-            for _, entry in active_entries.iterrows():
-                if entry.get('source') == 'google':
-                    df_v = bp_data[bp_data['valve_type'] == entry['final_mapped_type']].copy()
-                else:
-                    f = file_map[entry['file_name']]
-                    df_v = parse_valve_data(f, entry['sheet_name'], entry['col_start'], entry['location'], target_year)
-                if len(df_v) > 0:
-                    df_v['valve_type'] = entry['final_mapped_type']
-                    parsed_dfs.append(df_v)
+            active_types = available_valves_list if is_all_valves else [selected_valve]
+            combined_df = all_mapped_data[all_mapped_data['valve_type'].isin(active_types)].copy()
 
-            if parsed_dfs:
-                combined_df = pd.concat(parsed_dfs, ignore_index=True)
+            if len(combined_df) > 0:
                 
                 # แสดงกล่องสรุปรายการโอนที่ตรวจพบ
                 transfer_rows = combined_df[combined_df['is_transfer']].copy()
@@ -764,19 +764,10 @@ if source_files:
             sim_plant_view = sim_c2.selectbox("🏢 2. เลือกพื้นที่ (Plant):", ["🏢 ทุกพื้นที่รวมกัน (All Plants)"] + [f"📍 {p}" for p in sim_plants_available], key="sim_plant")
             target_future_month = sim_c3.slider("📅 3. คาดการณ์ไปจนถึงสิ้นเดือน:", min_value=8, max_value=12, value=12, format="เดือน %d")
 
-            sim_dfs = []
-            for _, entry in sim_entries.iterrows():
-                if entry.get('source') == 'google':
-                    df_v = bp_data[bp_data['valve_type'] == entry['final_mapped_type']].copy()
-                else:
-                    f = file_map[entry['file_name']]
-                    df_v = parse_valve_data(f, entry['sheet_name'], entry['col_start'], entry['location'], target_year)
-                if len(df_v) > 0:
-                    df_v['valve_type'] = entry['final_mapped_type']
-                    sim_dfs.append(df_v)
+            sim_types = available_valves_list if is_sim_all_valves else [sim_selected_valve]
+            sim_comb_df = all_mapped_data[all_mapped_data['valve_type'].isin(sim_types)].copy()
 
-            if sim_dfs:
-                sim_comb_df = pd.concat(sim_dfs, ignore_index=True)
+            if len(sim_comb_df) > 0:
                 
                 # Two-step aggregation
                 sim_valve_monthly = sim_comb_df.groupby(['location', 'valve_type', 'month_num']).agg(
