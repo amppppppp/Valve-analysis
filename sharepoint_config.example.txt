@@ -1,0 +1,16 @@
+การตั้งค่าแหล่งข้อมูล Excel
+
+แบบที่ 1: SharePoint Sync ผ่าน OneDrive บนเครื่องนี้
+LOCAL_SHAREPOINT_FOLDER=C:\Users\ชื่อผู้ใช้\ชื่อบริษัท\ชื่อไซต์ SharePoint\Documents\Valve Data
+
+ตัวอย่างไฟล์:
+LOCAL_SHAREPOINT_FILE=C:\Users\ชื่อผู้ใช้\ชื่อบริษัท\ชื่อไซต์ SharePoint\Documents\Valve Data\stock_card.xlsx
+
+แบบที่ 2: ใช้ URL สำหรับ Web App ที่ Deploy
+SHAREPOINT_FILE_URL=https://ชื่อบริษัท.sharepoint.com/sites/ชื่อไซต์/Shared%20Documents/Valve%20Data/stock_card.xlsx
+
+หมายเหตุ:
+- ไม่ต้องใส่รหัสผ่านหรือ Client Secret ในไฟล์นี้
+- Path ในเครื่องใช้ได้เมื่อ SharePoint Sync กับ OneDrive แล้วเท่านั้น
+- Path ในเครื่องไม่สามารถใช้ได้จาก Streamlit Cloud หรือคอมพิวเตอร์เครื่องอื่น
+- ถ้าไฟล์มีหลายพื้นที่ ให้เก็บหลายไฟล์ในโฟลเดอร์เดียวกัน เช่น AY.xlsx, NS.xlsx, BP.xlsx

@@ -7,6 +7,7 @@ import calendar
 import datetime
 import io
 import re
+from pathlib import Path
 from urllib.parse import quote
 from urllib.request import urlopen
 
@@ -47,6 +48,16 @@ TRANSFER_KEYWORDS = [
     'โอน', 'ส่งให้', 'ส่งไป', 'ส่ง', 'คป.', 'คป', 'รซ.', 'รซ',
     'ชื่นศิริ', 'ชื่น', 'เมทเทิลเมท', 'เมท', 'สหมิตร', 'ลำปาง', 'บ้านโรงโป๊ะ', 'นว.'
 ]
+
+DEFAULT_LOCAL_DATA_FOLDER = r"D:\PTTOR\ผ.บป.วห - ผ.บป.วห\45-วาล์วสำหรับถังซ่อม\1. ไฟล์ที่จำเป็นสำหรับการงานจัดซื้อวาล์ว\Valve stock analysis"
+
+class LocalDataFile:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.name = self.path.name
+
+    def getvalue(self):
+        return self.path.read_bytes()
 
 def is_transfer_issue(issue_to_val):
     """ตรวจจับว่ารายการจ่ายนี้เป็นการโอนไปคลัง/โรงงานอื่นหรือไม่"""
@@ -424,18 +435,37 @@ uploaded_files = st.file_uploader(
     type=["xlsx", "xls"],
     accept_multiple_files=True
 )
+local_data_folder = st.text_input(
+    "หรืออ่านไฟล์จากโฟลเดอร์ SharePoint/OneDrive ในเครื่อง:",
+    value=DEFAULT_LOCAL_DATA_FOLDER,
+    help="ต้องเป็นโฟลเดอร์ที่ Sync ไว้ในเครื่องนี้ และควรมีไฟล์ .xlsx หรือ .xls อยู่ภายใน"
+)
+local_files = []
+local_path = Path(local_data_folder.strip()) if local_data_folder.strip() else None
+if local_path and local_path.is_dir():
+    local_files = [LocalDataFile(path) for path in sorted(local_path.glob("*.xlsx"))]
+    local_files.extend(LocalDataFile(path) for path in sorted(local_path.glob("*.xls")))
+    if local_files:
+        st.success(f"พบไฟล์จากโฟลเดอร์ในเครื่อง {len(local_files)} ไฟล์")
+    else:
+        st.info("พบโฟลเดอร์แล้ว แต่ยังไม่มีไฟล์ Excel")
+elif local_data_folder.strip():
+    st.warning("ไม่พบโฟลเดอร์ Location นี้ในเครื่อง")
+
+source_files = list(uploaded_files or [])
+source_files.extend(local_files)
 bp_google_url = st.text_input(
     "Google Sheet บ้านโรงโป๊ะ (BP) - URL (ไม่บังคับ):",
     value="https://docs.google.com/spreadsheets/d/1rSx6ivg3kaO-FEHAMP2IWJAy4Pb9A8t3TZ5i3qNKT18/edit?usp=sharing",
     help="ระบบจะอ่านแท็บ 'ยอดใช้วาล์วใหม่' โดยตรง ต้องเปิดสิทธิ์ให้ผู้ที่มีลิงก์ดูได้"
 )
 
-if uploaded_files:
-    file_map = {f.name: f for f in uploaded_files}
+if source_files:
+    file_map = {f.name: f for f in source_files}
     st.write("📍 **กำหนดพื้นที่ (Plant) ของแต่ละไฟล์:**")
     plant_assignments = {}
-    cols = st.columns(min(len(uploaded_files), 3))
-    for idx, f in enumerate(uploaded_files):
+    cols = st.columns(min(len(source_files), 3))
+    for idx, f in enumerate(source_files):
         col = cols[idx % len(cols)]
         with col:
             sugg = auto_detect_plant(f.name)
@@ -445,7 +475,7 @@ if uploaded_files:
 
     # สแกนหาชีตและรหัสพัสดุ
     all_scanned_items = []
-    for f in uploaded_files:
+    for f in source_files:
         items = scan_all_sheets_and_codes(f, plant_assignments[f.name])
         all_scanned_items.extend(items)
 
