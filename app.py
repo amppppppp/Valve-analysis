@@ -35,6 +35,14 @@ CODE_TO_VALVE = {
 }
 
 STANDARD_VALVE_TYPES = list(CODE_TO_VALVE.values()) + ["วาล์วเปิด-ปิด", "วาล์วชำรุด", "อื่นๆ / ข้ามรายการนี้"]
+BP_VALVE_TYPES = [
+    "วาล์ว 4 กก. Valve ใหม่", "วาล์ว 7 กก. Valve ใหม่", "วาล์ว 15 กก. Valve ใหม่",
+    "วาล์ว 15 กก. FL บรรจุ", "วาล์ว 15 กก. FL จ่าย",
+    "วาล์ว 15 กก. FL เกจวัด", "วาล์ว 15 กก. FL นิรภัย",
+    "วาล์ว 48 กก. Valve ใหม่", "วาล์ว 48 กก. LW บรรจุ",
+    "วาล์ว 48 กก. LW จ่าย"
+]
+STANDARD_VALVE_TYPES = list(dict.fromkeys(STANDARD_VALVE_TYPES + BP_VALVE_TYPES))
 ALL_VALVES_LABEL = "📦 รวมวาล์วทุกประเภท (All Valve Types Combined)"
 PLANT_OPTIONS = ["อยุธยา (AY)", "ขอนแก่น (KK)", "สงขลา (SK)", "นครสวรรค์ (NS)", "บ้านโรงโป๊ะ (BP)", "อื่นๆ (ระบุเอง)"]
 
@@ -271,18 +279,14 @@ def load_bp_google_sheet(sheet_url, target_year_be):
         source = pd.read_csv(io.BytesIO(raw), header=None, encoding='utf-8')
         # รูปแบบ BP เป็นตารางไขว้: วันที่อยู่แถว และขนาดวาล์วอยู่คอลัมน์
         if source.shape[0] > 4 and source.shape[1] >= 11:
-            valve_groups = {
-                1: 'วาล์วมือหมุน 4/7 กก.', 2: 'วาล์วมือหมุน 4/7 กก.',
-                3: 'วาล์วมือหมุน 4/7 กก.', 4: 'วาล์วมือหมุน 4/7 กก.',
-                5: 'วาล์วมือหมุน 4/7 กก.', 6: 'วาล์วมือหมุน 4/7 กก.',
-                7: 'วาล์วมือหมุน 15 กก.', 8: 'วาล์วมือหมุน 15 กก.',
-                9: 'วาล์วมือหมุน 48 กก.', 10: 'วาล์วมือหมุน 48 กก.'
-            }
+            # คอลัมน์ BP ตามหัวตารางจริง: 4 kg, 7 kg, 15 kg, FL 4 รายการ,
+            # 48 kg และ LW 2 รายการ ตามลำดับ
+            valve_groups = dict(zip(range(1, 11), BP_VALVE_TYPES))
             month_pattern = '|'.join(MONTH_TH_NAMES.values())
             rows = []
             for row_index in range(4, len(source)):
                 date_text = str(source.iloc[row_index, 0]).strip()
-                match = re.search(r'^(\d{1,2})\s*(' + month_pattern + r')', date_text)
+                match = re.match(r'^(\d{1,2})\s*(' + month_pattern + r')', date_text)
                 if not match:
                     continue
                 day = int(match.group(1))
