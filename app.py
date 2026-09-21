@@ -8,7 +8,7 @@ import datetime
 import io
 import re
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import urlopen
 
 st.set_page_config(
@@ -273,7 +273,12 @@ def load_bp_google_sheet(sheet_url, target_year_be):
     """อ่านแท็บยอดใช้วาล์วใหม่จาก Google Sheet ที่เปิดให้เข้าถึงได้"""
     try:
         sheet_id = sheet_url.split('/spreadsheets/d/')[1].split('/')[0]
-        csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&sheet={quote('ยอดใช้วาล์วใหม่')}"
+        query = parse_qs(urlparse(sheet_url).query)
+        gid = query.get('gid', [None])[0]
+        if gid:
+            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={quote(gid)}"
+        else:
+            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&sheet={quote('ยอดใช้วาล์วใหม่')}"
         with urlopen(csv_url, timeout=20) as response:
             raw = response.read()
         source = pd.read_csv(io.BytesIO(raw), header=None, encoding='utf-8')
@@ -480,6 +485,9 @@ bp_google_url = st.text_input(
     value="https://docs.google.com/spreadsheets/d/1rSx6ivg3kaO-FEHAMP2IWJAy4Pb9A8t3TZ5i3qNKT18/edit?usp=sharing",
     help="ระบบจะอ่านแท็บ 'ยอดใช้วาล์วใหม่' โดยตรง ต้องเปิดสิทธิ์ให้ผู้ที่มีลิงก์ดูได้"
 )
+if st.button("🔄 ดึงข้อมูล BP ใหม่", help="ล้าง cache แล้วอ่าน Google Sheet ล่าสุด"):
+    load_bp_google_sheet.clear()
+    st.rerun()
 
 if source_files:
     file_map = {f.name: f for f in source_files}
@@ -532,6 +540,11 @@ if source_files:
                 mapping_results.append(item_copy)
 
     bp_data = load_bp_google_sheet(bp_google_url, target_year) if bp_google_url.strip() else pd.DataFrame()
+    if bp_google_url.strip():
+        if len(bp_data) > 0:
+            st.success(f"โหลดข้อมูล BP สำเร็จ {len(bp_data):,} รายการ จากแท็บยอดใช้วาล์วใหม่")
+        else:
+            st.error("โหลดข้อมูล BP ไม่สำเร็จ กรุณาตรวจสิทธิ์ Anyone with the link หรือ URL Google Sheet")
     if len(bp_data) > 0:
         for valve_name in sorted(bp_data['valve_type'].unique()):
             mapping_results.append({
