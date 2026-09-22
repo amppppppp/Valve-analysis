@@ -36,11 +36,11 @@ CODE_TO_VALVE = {
 
 STANDARD_VALVE_TYPES = list(CODE_TO_VALVE.values()) + ["วาล์วเปิด-ปิด", "วาล์วชำรุด", "อื่นๆ / ข้ามรายการนี้"]
 BP_VALVE_TYPES = [
-    "วาล์ว 4 กก. Valve ใหม่", "วาล์ว 7 กก. Valve ใหม่", "วาล์ว 15 กก. Valve ใหม่",
-    "วาล์ว 15 กก. FL บรรจุ", "วาล์ว 15 กก. FL จ่าย",
-    "วาล์ว 15 กก. FL เกจวัด", "วาล์ว 15 กก. FL นิรภัย",
-    "วาล์ว 48 กก. Valve ใหม่", "วาล์ว 48 กก. LW บรรจุ",
-    "วาล์ว 48 กก. LW จ่าย"
+    "วาล์วแค้มปิ้ง", "วาล์วมือหมุน 4/7 กก.", "วาล์วมือหมุน 15 กก.",
+    "FL - วาล์วบรรจุ 15 กก. FL", "FL - วาล์วจ่าย 15 กก. FL",
+    "FL - เกจวัดแรงดัน 15 กก. FL", "FL - วาล์วนิรภัย 15 กก. FL",
+    "วาล์วมือหมุน 48 กก.", "LW - วาล์วบรรจุ 48 กก. L/W",
+    "LW - วาล์วจ่าย 48 กก. L/W"
 ]
 STANDARD_VALVE_TYPES = list(dict.fromkeys(STANDARD_VALVE_TYPES + BP_VALVE_TYPES))
 ALL_VALVES_LABEL = "📦 รวมวาล์วทุกประเภท (All Valve Types Combined)"
@@ -57,7 +57,7 @@ TRANSFER_KEYWORDS = [
     'ชื่นศิริ', 'ชื่น', 'เมทเทิลเมท', 'เมท', 'สหมิตร', 'ลำปาง', 'บ้านโรงโป๊ะ', 'นว.'
 ]
 
-DEFAULT_LOCAL_DATA_FOLDER = r"D:\PTTOR\ผ.บป.วห - ผ.บป.วห\45-วาล์วสำหรับถังซ่อม\1. ไฟล์ที่จำเป็นสำหรับการงานจัดซื้อวาล์ว\Valve stock analysis"
+DEFAULT_LOCAL_DATA_FOLDER = r"D:\PTTOR\ผ.บป.วห - ผ.บป.วห\33-Daily Report และถังทดสอบไม่ซ่อมสี\Stock card"
 
 class LocalDataFile:
     def __init__(self, path):
@@ -97,6 +97,120 @@ def normalize_month(val):
         'ต.ค': 10, 'ตค': 10, 'พ.ย': 11, 'พย': 11, 'ธ.ค': 12, 'ธค': 12
     }
     return mapping.get(s_nodot, mapping.get(s, None))
+
+
+def normalize_bp_valve_type(val):
+    """ให้ชื่อชนิดวาล์ว BP ตรงกับชื่อวาล์วที่ใช้ในระบบหลัก (canonical names)"""
+    if pd.isna(val):
+        return val
+    original = str(val).strip()
+    if original in BP_VALVE_TYPES:
+        return original
+    exact_mapping = {
+        'วาล์ว 4 กก. Valve ใหม่': 'วาล์วมือหมุน 4/7 กก.',
+        'วาล์ว 7 กก. Valve ใหม่': 'วาล์วมือหมุน 4/7 กก.',
+        'วาล์ว 15 กก. Valve ใหม่': 'วาล์วมือหมุน 15 กก.',
+        'วาล์ว 15 กก. FL บรรจุ': 'FL - วาล์วบรรจุ 15 กก. FL',
+        '15 FL บรรจุ': 'FL - วาล์วบรรจุ 15 กก. FL',
+        'วาล์ว 15 กก. FL จ่าย': 'FL - วาล์วจ่าย 15 กก. FL',
+        '15 FL จ่าย': 'FL - วาล์วจ่าย 15 กก. FL',
+        'วาล์ว 15 กก. FL เกจวัด': 'FL - เกจวัดแรงดัน 15 กก. FL',
+        '15 FL เกจวัด': 'FL - เกจวัดแรงดัน 15 กก. FL',
+        'วาล์ว 15 กก. FL นิรภัย': 'FL - วาล์วนิรภัย 15 กก. FL',
+        '15 FL นิรภัย': 'FL - วาล์วนิรภัย 15 กก. FL',
+        'วาล์ว 48 กก. Valve ใหม่': 'วาล์วมือหมุน 48 กก.',
+        'วาล์ว 48 กก. LW บรรจุ': 'LW - วาล์วบรรจุ 48 กก. L/W',
+        '48 LW บรรจุ': 'LW - วาล์วบรรจุ 48 กก. L/W',
+        'วาล์ว 48 กก. LW จ่าย': 'LW - วาล์วจ่าย 48 กก. L/W',
+        '48 LW จ่าย': 'LW - วาล์วจ่าย 48 กก. L/W'
+    }
+    if original in exact_mapping:
+        return exact_mapping[original]
+
+    s = original.lower()
+
+    if '4 kg' in s or '4/7' in s or '4-7' in s:
+        return 'วาล์วมือหมุน 4/7 กก.'
+    if '7 kg' in s and '4' not in s:
+        return 'วาล์วมือหมุน 4/7 กก.'
+    if '15 kg' in s and 'fl' in s and 'บรรจุ' in s:
+        return 'FL - วาล์วบรรจุ 15 กก. FL'
+    if '15 kg' in s and 'fl' in s and 'จ่าย' in s:
+        return 'FL - วาล์วจ่าย 15 กก. FL'
+    if '15 kg' in s and 'fl' in s and 'เกจ' in s:
+        return 'FL - เกจวัดแรงดัน 15 กก. FL'
+    if '15 kg' in s and 'fl' in s and 'นิรภัย' in s:
+        return 'FL - วาล์วนิรภัย 15 กก. FL'
+    if '15 kg' in s and 'fl' not in s:
+        return 'วาล์วมือหมุน 15 กก.'
+    if '48 kg' in s and 'lw' in s and 'บรรจุ' in s:
+        return 'LW - วาล์วบรรจุ 48 กก. L/W'
+    if '48 kg' in s and 'lw' in s and 'จ่าย' in s:
+        return 'LW - วาล์วจ่าย 48 กก. L/W'
+    if '48 kg' in s and 'lw' not in s:
+        return 'วาล์วมือหมุน 48 กก.'
+    if 'fl' in s and '15' in s:
+        return 'FL - วาล์วบรรจุ 15 กก. FL' if 'บรรจุ' in s else 'FL - วาล์วจ่าย 15 กก. FL'
+    if 'lw' in s and '48' in s:
+        return 'LW - วาล์วบรรจุ 48 กก. L/W' if 'บรรจุ' in s else 'LW - วาล์วจ่าย 48 กก. L/W'
+    return str(val).strip()
+
+
+def parse_bp_date(value):
+    """อ่านวันที่ BP เช่น 7 ก.ค.69 และคืนค่า (วัน, เดือน, ปี พ.ศ.)"""
+    if pd.isna(value):
+        return None, None, None
+    text = str(value).strip().replace(' ', '')
+    match = re.search(r'^(\d{1,2})(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)(\d{2,4})?$', text)
+    if not match:
+        return None, None, None
+    day = int(match.group(1))
+    month_num = normalize_month(match.group(2))
+    raw_year = match.group(3)
+    if not raw_year:
+        year_be = None
+    else:
+        year_value = int(raw_year)
+        year_be = year_value if year_value > 2500 else year_value + 2500
+    return day, month_num, year_be
+
+
+def detect_bp_valve_columns(source):
+    """จับคู่คอลัมน์ BP จาก header จริง และใช้ตำแหน่ง B-K เป็น fallback"""
+    detected = {}
+    for col_idx in range(1, min(source.shape[1], 11)):
+        header_parts = []
+        for row_idx in (1, 2):
+            if row_idx < source.shape[0] and pd.notna(source.iloc[row_idx, col_idx]):
+                header_parts.append(str(source.iloc[row_idx, col_idx]))
+        header = re.sub(r'\s+', '', ''.join(header_parts)).lower()
+
+        # ตรวจ FL/LW ก่อนประเภทน้ำหนักทั่วไป เพราะหัวข้อ FL/LW มีเลข 15/48 อยู่ด้วย
+        if '15fl' in header and 'บรรจุ' in header:
+            detected[col_idx] = 'FL - วาล์วบรรจุ 15 กก. FL'
+        elif '15fl' in header and 'จ่าย' in header:
+            detected[col_idx] = 'FL - วาล์วจ่าย 15 กก. FL'
+        elif '15fl' in header and 'เกจวัด' in header:
+            detected[col_idx] = 'FL - เกจวัดแรงดัน 15 กก. FL'
+        elif '15fl' in header and 'นิรภัย' in header:
+            detected[col_idx] = 'FL - วาล์วนิรภัย 15 กก. FL'
+        elif '48lw' in header and 'บรรจุ' in header:
+            detected[col_idx] = 'LW - วาล์วบรรจุ 48 กก. L/W'
+        elif '48lw' in header and 'จ่าย' in header:
+            detected[col_idx] = 'LW - วาล์วจ่าย 48 กก. L/W'
+        elif '4kg' in header:
+            detected[col_idx] = 'วาล์วแค้มปิ้ง'
+        elif '7kg' in header:
+            detected[col_idx] = 'วาล์วมือหมุน 4/7 กก.'
+        elif '15kg' in header and 'fl' not in header:
+            detected[col_idx] = 'วาล์วมือหมุน 15 กก.'
+        elif '48kg' in header and 'lw' not in header:
+            detected[col_idx] = 'วาล์วมือหมุน 48 กก.'
+
+    # หาก header บางคอลัมน์ไม่มีข้อความ ให้เติมตามตำแหน่ง B-K ของตารางจริง
+    for col_idx in range(1, min(source.shape[1], 11)):
+        detected.setdefault(col_idx, BP_VALVE_TYPES[col_idx - 1])
+    return detected
 
 def count_workdays_no_sunday(year_ce, month):
     try:
@@ -270,96 +384,86 @@ def parse_valve_data(uploaded_file, sheet_name, col_start, location_name, target
 
 @st.cache_data(show_spinner=False)
 def load_bp_google_sheet(sheet_url, target_year_be):
-    """อ่านแท็บยอดใช้วาล์วใหม่จาก Google Sheet ที่เปิดให้เข้าถึงได้"""
+    """อ่านแท็บยอดใช้วาล์วใหม่จาก Google Sheet ที่เปิดให้เข้าถึงได้
+
+    ตาราง BP เป็นตารางไขว้แบบรายวันแต่ข้อมูลที่ใช้จริงควรสรุปเป็นยอดรายเดือนต่อชนิดวาล์ว
+    ดังนั้นต้องรวมทุกรอบวันที่อยู่ในเดือนเดียวกันของแต่ละชนิดวาล์วก่อนนำไปใช้ใน dashboard
+    และ export Excel
+    """
     try:
         sheet_id = sheet_url.split('/spreadsheets/d/')[1].split('/')[0]
-        query = parse_qs(urlparse(sheet_url).query)
-        gid = query.get('gid', [None])[0]
-        if gid:
-            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={quote(gid)}"
-        else:
-            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&sheet={quote('ยอดใช้วาล์วใหม่')}"
+        csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={quote('ยอดใช้วาล์วใหม่')}"
         with urlopen(csv_url, timeout=20) as response:
             raw = response.read()
         source = pd.read_csv(io.BytesIO(raw), header=None, encoding='utf-8')
-        # รูปแบบ BP เป็นตารางไขว้: วันที่อยู่แถว และขนาดวาล์วอยู่คอลัมน์
+
+        # รูปแบบ BP ที่ยืนยันแล้ว: A เป็นวันที่, B-K เป็นวาล์ว 10 ประเภท,
+        # L เป็น TOTAL จึงห้ามนำคอลัมน์ L มาอ่านซ้ำ
         if source.shape[0] > 4 and source.shape[1] >= 11:
-            # คอลัมน์ BP ตามหัวตารางจริง: 4 kg, 7 kg, 15 kg, FL 4 รายการ,
-            # 48 kg และ LW 2 รายการ ตามลำดับ
+            title_cells = source.iloc[:4].fillna('').astype(str).apply(
+                lambda column: column.str.replace(r'\s+', '', regex=True)
+            )
+            sheet_title = ''.join(title_cells.values.flatten().tolist())
+            if 'ปริมาณวาล์วใหม่ที่ใช้จริงต่อวัน' not in sheet_title:
+                return pd.DataFrame()
+
+            # ใช้ตำแหน่งคอลัมน์ตามตารางจริงที่ยืนยันแล้วเท่านั้น:
+            # A=วันที่, B-K=วาล์วตามลำดับ, L=TOTAL (ไม่อ่าน)
             valve_groups = dict(zip(range(1, 11), BP_VALVE_TYPES))
-            month_pattern = '|'.join(MONTH_TH_NAMES.values())
-            rows = []
-            for row_index in range(4, len(source)):
-                date_text = str(source.iloc[row_index, 0]).strip()
-                match = re.match(r'^(\d{1,2})\s*(' + month_pattern + r')', date_text)
-                if not match:
+            month_totals = {}
+            active_year_be = target_year_be
+
+            for row_index in range(2, len(source)):
+                day, month_num, row_year_be = parse_bp_date(source.iloc[row_index, 0])
+                if month_num is None:
                     continue
-                day = int(match.group(1))
-                month_num = normalize_month(match.group(2))
-                for column_index, valve_type in valve_groups.items():
-                    quantity = pd.to_numeric(source.iloc[row_index, column_index], errors='coerce')
+                # ในชีตจริงปีมักแสดงเฉพาะแถวแรกของช่วงเดือน แล้วแถวถัดไปเว้นว่างไว้
+                # จึงต้องสืบทอดปีล่าสุด แทนการปล่อยแถวที่ไม่มีปีปะปนข้ามปี
+                if row_year_be is not None:
+                    active_year_be = row_year_be
+                if active_year_be != target_year_be:
+                    continue
+                for col_idx, valve_type in valve_groups.items():
+                    quantity = pd.to_numeric(source.iloc[row_index, col_idx], errors='coerce')
                     if pd.isna(quantity):
                         quantity = 0.0
+                    key = (month_num, valve_type)
+                    month_totals[key] = float(month_totals.get(key, 0.0)) + float(quantity)
+
+            if month_totals:
+                rows = []
+                for (month_num, valve_type), total_qty in month_totals.items():
+                    standardized_type = normalize_bp_valve_type(valve_type)
                     rows.append({
-                        'valve_type': valve_type, 'day': day, 'month_num': month_num,
-                        'year_be': target_year_be, 'issue_qty': float(quantity),
-                        'rcv_from': '', 'rcv_qty': 0.0,
-                        'issue_to': 'ใช้จริงจาก Google Sheet', 'balance': np.nan,
-                        'location': 'บ้านโรงโป๊ะ (BP)', 'is_transfer': False,
-                        'transfer_qty': 0.0, 'return_qty': 0.0,
-                        'actual_issue_qty': float(quantity)
+                        'valve_type': standardized_type,
+                        'day': 1,
+                        'month_num': month_num,
+                        'year_be': target_year_be,
+                        'issue_qty': float(total_qty),
+                        'rcv_from': '',
+                        'rcv_qty': 0.0,
+                        'issue_to': 'ใช้จริงจาก Google Sheet',
+                        'balance': np.nan,
+                        'location': 'บ้านโรงโป๊ะ (BP)',
+                        'is_transfer': False,
+                        'transfer_qty': 0.0,
+                        'return_qty': 0.0,
+                        'actual_issue_qty': float(total_qty)
                     })
-            return pd.DataFrame(rows)
+                return pd.DataFrame(rows)
 
-        source = source.iloc[1:].copy()
-        source.columns = [str(column).strip() for column in source.columns]
-        names = {column: column.lower().replace(' ', '') for column in source.columns}
-
-        def find_column(words, excluded=()):
-            for column, normalized in names.items():
-                if any(word in normalized for word in words) and not any(word in normalized for word in excluded):
-                    return column
-            return None
-
-        valve_column = find_column(['ชนิดวาล์ว', 'ประเภทวาล์ว', 'ขนาดวาล์ว', 'ชื่อวาล์ว', 'วาล์ว', 'valve'])
-        quantity_column = find_column(['ยอดใช้', 'จำนวนใช้', 'ใช้วาล์ว', 'เบิกใช้', 'usage', 'quantity', 'qty'], ['คงเหลือ'])
-        date_column = find_column(['วันที่', 'date'])
-        month_column = find_column(['เดือน', 'month'])
-        year_column = find_column(['ปี', 'year'])
-        day_column = find_column(['วัน', 'day']) if not date_column else None
-        if not valve_column or not quantity_column or not (date_column or (month_column and year_column)):
-            return pd.DataFrame()
-
-        result = pd.DataFrame()
-        result['valve_type'] = source[valve_column].astype(str).str.strip()
-        result['issue_qty'] = pd.to_numeric(source[quantity_column], errors='coerce').fillna(0)
-        if date_column:
-            dates = pd.to_datetime(source[date_column], errors='coerce', dayfirst=True)
-            result['day'] = dates.dt.day
-            result['month_num'] = dates.dt.month
-            result['year_be'] = dates.dt.year + 543
-        else:
-            result['day'] = pd.to_numeric(source[day_column], errors='coerce') if day_column else 1
-            result['month_num'] = source[month_column].apply(normalize_month)
-            raw_year = pd.to_numeric(source[year_column], errors='coerce')
-            result['year_be'] = raw_year.apply(lambda year: int(year) if year > 2500 else int(year) + 543 if pd.notna(year) else np.nan)
-
-        result = result[result['year_be'] == target_year_be].copy()
-        result = result[result['valve_type'].notna() & (result['valve_type'] != 'nan')]
-        result['day'] = pd.to_numeric(result['day'], errors='coerce').fillna(1).astype(int)
-        result['month_num'] = pd.to_numeric(result['month_num'], errors='coerce')
-        result['rcv_from'] = ''
-        result['rcv_qty'] = 0.0
-        result['issue_to'] = 'ใช้จริงจาก Google Sheet'
-        result['balance'] = np.nan
-        result['location'] = 'บ้านโรงโป๊ะ (BP)'
-        result['is_transfer'] = False
-        result['transfer_qty'] = 0.0
-        result['return_qty'] = 0.0
-        result['actual_issue_qty'] = result['issue_qty']
-        return result.dropna(subset=['month_num'])
+        # ห้าม fallback ไป parser แบบตารางทั่วไป เพราะอาจอ่านคนละคอลัมน์/คนละชีต
+        return pd.DataFrame()
     except Exception:
         return pd.DataFrame()
+
+
+def fetch_bp_raw_csv(sheet_url):
+    """ดึง CSV ดิบจาก Tab BP เดียวกับ parser เพื่อใช้ตรวจสอบต้นทาง"""
+    sheet_id = sheet_url.split('/spreadsheets/d/')[1].split('/')[0]
+    csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={quote('ยอดใช้วาล์วใหม่')}"
+    with urlopen(csv_url, timeout=20) as response:
+        return response.read(), csv_url
 
 @st.cache_data(show_spinner=False)
 def load_all_mapped_data(entry_specs, target_year_be, bp_data):
@@ -482,7 +586,7 @@ source_files = list(uploaded_files or [])
 source_files.extend(local_files)
 bp_google_url = st.text_input(
     "Google Sheet บ้านโรงโป๊ะ (BP) - URL (ไม่บังคับ):",
-    value="https://docs.google.com/spreadsheets/d/1rSx6ivg3kaO-FEHAMP2IWJAy4Pb9A8t3TZ5i3qNKT18/edit?usp=sharing",
+    value="",
     help="ระบบจะอ่านแท็บ 'ยอดใช้วาล์วใหม่' โดยตรง ต้องเปิดสิทธิ์ให้ผู้ที่มีลิงก์ดูได้"
 )
 if st.button("🔄 ดึงข้อมูล BP ใหม่", help="ล้าง cache แล้วอ่าน Google Sheet ล่าสุด"):
@@ -510,39 +614,73 @@ if source_files or bp_google_url.strip():
 
     # --- Manual Mapping Expander --- #
     mapping_results = []
-    with st.expander("🛠️ ตรวจสอบ / แก้ไขการจับคู่ประเภทวาล์ว (Valve Mapping UI)", expanded=False):
-        st.info("💡 ระบบจับคู่อัตโนมัติจาก 'รหัสพัสดุ' ให้แล้ว หากต้องการเปลี่ยนคู่ สามารถเลือกใน Dropdown:")
-        m_cols = st.columns([2, 2, 2, 2, 3])
-        m_cols[0].write("**พื้นที่**")
-        m_cols[1].write("**ชื่อ Sheet**")
-        m_cols[2].write("**รหัสพัสดุที่พบ**")
-        m_cols[3].write("**ชื่อเดิมในไฟล์**")
-        m_cols[4].write("**กำหนดเป็นวาล์วประเภท (Mapped To):**")
+    if source_files:
+        with st.expander("🛠️ ตรวจสอบ / แก้ไขการจับคู่ประเภทวาล์ว (Valve Mapping UI)", expanded=False):
+            st.info("💡 ระบบจับคู่อัตโนมัติจาก 'รหัสพัสดุ' ให้แล้ว หากต้องการเปลี่ยนคู่ สามารถเลือกใน Dropdown:")
+            m_cols = st.columns([2, 2, 2, 2, 3])
+            m_cols[0].write("**พื้นที่**")
+            m_cols[1].write("**ชื่อ Sheet**")
+            m_cols[2].write("**รหัสพัสดุที่พบ**")
+            m_cols[3].write("**ชื่อเดิมในไฟล์**")
+            m_cols[4].write("**กำหนดเป็นวาล์วประเภท (Mapped To):**")
 
-        for i, item in enumerate(all_scanned_items):
-            c0, c1, c2, c3, c4 = st.columns([2, 2, 2, 2, 3])
-            c0.write(f"📍 {item['location']}")
-            c1.write(f"`{item['sheet_name']}` (col {item['col_start']})")
-            c2.write(f"**{item['item_code']}**")
-            c3.write(item['raw_item_name'])
-            
-            default_choice_idx = STANDARD_VALVE_TYPES.index(item['detected_type']) if item['detected_type'] in STANDARD_VALVE_TYPES else 0
-            user_selected_type = c4.selectbox(
-                f"map_{i}",
-                STANDARD_VALVE_TYPES,
-                index=default_choice_idx,
-                key=f"user_map_{i}",
-                label_visibility="collapsed"
-            )
-            if user_selected_type != "อื่นๆ / ข้ามรายการนี้":
-                item_copy = item.copy()
-                item_copy['final_mapped_type'] = user_selected_type
-                mapping_results.append(item_copy)
+            for i, item in enumerate(all_scanned_items):
+                c0, c1, c2, c3, c4 = st.columns([2, 2, 2, 2, 3])
+                c0.write(f"📍 {item['location']}")
+                c1.write(f"`{item['sheet_name']}` (col {item['col_start']})")
+                c2.write(f"**{item['item_code']}**")
+                c3.write(item['raw_item_name'])
+
+                default_choice_idx = STANDARD_VALVE_TYPES.index(item['detected_type']) if item['detected_type'] in STANDARD_VALVE_TYPES else 0
+                user_selected_type = c4.selectbox(
+                    f"map_{i}",
+                    STANDARD_VALVE_TYPES,
+                    index=default_choice_idx,
+                    key=f"user_map_{i}",
+                    label_visibility="collapsed"
+                )
+                if user_selected_type != "อื่นๆ / ข้ามรายการนี้":
+                    item_copy = item.copy()
+                    item_copy['final_mapped_type'] = user_selected_type
+                    mapping_results.append(item_copy)
 
     bp_data = load_bp_google_sheet(bp_google_url, target_year) if bp_google_url.strip() else pd.DataFrame()
     if bp_google_url.strip():
         if len(bp_data) > 0:
             st.success(f"โหลดข้อมูล BP สำเร็จ {len(bp_data):,} รายการ จากแท็บยอดใช้วาล์วใหม่")
+            with st.expander("🔍 ตรวจสอบ CSV ดิบที่ระบบดึงจริง", expanded=False):
+                try:
+                    raw_csv, raw_csv_url = fetch_bp_raw_csv(bp_google_url)
+                    st.download_button(
+                        "📥 ดาวน์โหลด CSV ดิบจาก Tab ยอดใช้วาล์วใหม่",
+                        data=raw_csv,
+                        file_name="bp_raw_yodchai_valve.csv",
+                        mime="text/csv",
+                        key="download_bp_raw_csv"
+                    )
+                    raw_preview = pd.read_csv(io.BytesIO(raw_csv), header=None, encoding='utf-8')
+                    st.caption(f"แหล่งข้อมูล: {raw_csv_url}")
+                    st.dataframe(raw_preview.iloc[:12, :min(raw_preview.shape[1], 12)], use_container_width=True)
+                    raw_mapping = pd.DataFrame({
+                        'คอลัมน์ CSV': list('ABCDEFGHIJKL')[:raw_preview.shape[1]],
+                        'ตำแหน่งที่ parser อ่าน': list(range(raw_preview.shape[1])),
+                        'mapping ที่ parser ใช้': [
+                            'วันที่' if index == 0 else ('TOTAL (ไม่อ่าน)' if index == 11 else BP_VALVE_TYPES[index - 1])
+                            for index in range(raw_preview.shape[1])
+                        ],
+                        'header แถว 2': [
+                            str(raw_preview.iloc[1, index]) if raw_preview.shape[0] > 1 else ''
+                            for index in range(raw_preview.shape[1])
+                        ]
+                    })
+                    st.write("**Mapping ที่ parser ใช้จริงจาก CSV:**")
+                    st.dataframe(raw_mapping, hide_index=True, use_container_width=True)
+                    month_9_rows = raw_preview[raw_preview.iloc[:, 0].astype(str).str.contains(r'ก\.ย\.', regex=True, na=False)]
+                    if len(month_9_rows) > 0:
+                        st.write("**แถวเดือน 9 จาก CSV ดิบ (คอลัมน์ F คือค่าที่นำไปเป็น 15 FL จ่าย):**")
+                        st.dataframe(month_9_rows.iloc[:, :min(month_9_rows.shape[1], 12)], hide_index=True, use_container_width=True)
+                except Exception as error:
+                    st.error(f"ดึง CSV ดิบเพื่อตรวจสอบไม่ได้: {error}")
         else:
             st.error("โหลดข้อมูล BP ไม่สำเร็จ กรุณาตรวจสิทธิ์ Anyone with the link หรือ URL Google Sheet")
     if len(bp_data) > 0:
