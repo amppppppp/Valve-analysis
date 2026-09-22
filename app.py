@@ -489,7 +489,7 @@ if st.button("🔄 ดึงข้อมูล BP ใหม่", help="ล้า
     load_bp_google_sheet.clear()
     st.rerun()
 
-if source_files:
+if source_files or bp_google_url.strip():
     file_map = {f.name: f for f in source_files}
     st.write("📍 **กำหนดพื้นที่ (Plant) ของแต่ละไฟล์:**")
     plant_assignments = {}
